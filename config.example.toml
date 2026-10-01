@@ -1,0 +1,78 @@
+# ============================================================================
+# p3 web proxy — example configuration
+#
+# Policy resolution order (highest priority first):
+#   1. [[individuals]]  — per-IP rules
+#   2. [[departments]]  — department chosen by CIDR longest-prefix match
+#   3. [global]         — applies to everyone
+#   4. server.default_action
+#
+# Within any single level, `deny` is checked before `allow` (fail-safe).
+# The first level that matches wins; otherwise the default action applies.
+#
+# Domain patterns:
+#   "*"              matches everything
+#   "example.com"    matches example.com AND all subdomains
+#   "*.example.com"  matches subdomains only (not the apex)
+# Host matching is case-insensitive and ignores the port.
+# ============================================================================
+
+[server]
+# mode: "forward" | "transparent" | "mitm"
+mode = "forward"
+listen = "0.0.0.0:8080"
+# Action when no rule matches at any level: "allow" | "deny"
+default_action = "deny"
+
+# Only required when mode = "mitm". The CA must be trusted by clients.
+# [mitm]
+# ca_cert = "ca/ca.crt"
+# ca_key  = "ca/ca.key"
+
+# ---------------------------------------------------------------------------
+# Global rules — apply to every client IP.
+# ---------------------------------------------------------------------------
+[global]
+allow = ["*"]                       # allow general browsing by default
+deny = [
+  "ads.doubleclick.net",
+  "*.malware.test",
+  "coin-hive.com",
+]
+
+# ---------------------------------------------------------------------------
+# Departments — grouped by CIDR. More specific CIDRs win over broader ones.
+# ---------------------------------------------------------------------------
+[[departments]]
+name = "sales"
+cidrs = ["192.168.10.0/24", "10.1.0.0/16"]
+allow = ["crm.company.com"]
+deny = ["youtube.com", "facebook.com", "*.tiktok.com"]
+
+[[departments]]
+name = "engineering"
+cidrs = ["192.168.20.0/24"]
+allow = ["github.com", "*.rust-lang.org", "crates.io"]
+deny = []
+
+[[departments]]
+name = "guest-wifi"
+cidrs = ["172.16.0.0/16"]
+# Guests: only a short allow-list, everything else falls through to default (deny).
+allow = ["company.com", "wikipedia.org"]
+deny = []
+
+# ---------------------------------------------------------------------------
+# Individuals — per-IP overrides, highest priority.
+# ---------------------------------------------------------------------------
+[[individuals]]
+# Sales lead: allowed YouTube despite the department deny.
+ip = "192.168.10.55"
+allow = ["youtube.com"]
+deny = []
+
+[[individuals]]
+# A locked-down kiosk: block GitHub even though engineering allows it.
+ip = "192.168.20.9"
+allow = []
+deny = ["github.com"]
