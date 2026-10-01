@@ -18,10 +18,18 @@
 # ============================================================================
 
 [server]
-# mode: "forward" | "transparent" | "mitm"
-mode = "forward"
+# mode: "transparent" | "forward" | "mitm"
+#
+# "transparent" is the primary deployment: traffic is intercepted at the
+# network layer (iptables/nftables redirect on a gateway/router). Clients
+# configure NOTHING — their real source IP is seen directly, so department
+# CIDR matching works out of the box. The host is read from the TLS SNI
+# (443) or the HTTP Host header (80); no decryption. See README "Transparent".
+mode = "transparent"
 listen = "0.0.0.0:8080"
-# Action when no rule matches at any level: "allow" | "deny"
+# Action when no rule matches at any level: "allow" | "deny".
+# With "deny", HTTPS without SNI (e.g. IP-literal destinations) is blocked
+# because the host cannot be identified — a safe default for interception.
 default_action = "deny"
 
 # Only required when mode = "mitm". The CA must be trusted by clients.
